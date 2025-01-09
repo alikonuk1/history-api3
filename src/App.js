@@ -116,7 +116,7 @@ function App() {
               value={chainId}
               onChange={(e) => setChainId(e.target.value)}
               required
-              placeholder="56, 80001, or 421613"
+              placeholder="Enter chain Id"
             />
           </div>
 
