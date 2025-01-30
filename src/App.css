@@ -24,6 +24,7 @@ h1 {
 .form-group {
   margin-bottom: 1.5rem;
   text-align: left;
+  position: relative;
 }
 
 label {
@@ -79,4 +80,26 @@ button:hover {
 .result p {
   margin: 0.5rem 0;
   color: #666;
+}
+
+.chain-dropdown {
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+  z-index: 1000;
+  margin-top: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.chain-option {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.chain-option:hover {
+  background-color: #f5f5f5;
 }

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { ethers } from 'ethers';
 import { deploymentAddresses, IApi3ServerV1__factory } from '@api3/contracts';
+import { CHAINS } from '@api3/chains';
 import './App.css';
 
 function App() {
   const [chainId, setChainId] = useState('');
+  const [chainSearch, setChainSearch] = useState('');
+  const [showChainDropdown, setShowChainDropdown] = useState(false);
   const [startBlock, setStartBlock] = useState('');
   const [endBlock, setEndBlock] = useState('');
   const [blockStep, setBlockStep] = useState('1000');
@@ -13,22 +16,53 @@ function App() {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const getChainDetails = (chainId) => {
+    return CHAINS.find(chain => chain.id === chainId);
+  };
+
+  const searchChains = (searchTerm) => {
+    searchTerm = searchTerm.toLowerCase();
+    return CHAINS.filter(chain => 
+      chain.name.toLowerCase().includes(searchTerm) || 
+      chain.id.includes(searchTerm)
+    ).slice(0, 5); // Limit to 5 results
+  };
+
+  const handleChainSelect = (chain) => {
+    setChainId(chain.id);
+    setChainSearch(chain.name);
+    setShowChainDropdown(false);
+  };
+
+  const handleChainSearchChange = (e) => {
+    const value = e.target.value;
+    setChainSearch(value);
+    setShowChainDropdown(!!value);
+    
+    // If input is a valid chain ID, set it directly
+    const chain = CHAINS.find(c => c.id === value);
+    if (chain) {
+      setChainId(chain.id);
+    } else {
+      setChainId('');
+    }
+  };
+
   const getRpcUrl = (chainId) => {
-    const rpcUrls = {
-      '56': 'https://rpc.ankr.com/bsc',
-      '80001': 'https://rpc-mumbai.maticvigil.com',
-      '421613': 'https://goerli-rollup.arbitrum.io/rpc'
-    };
-    return rpcUrls[chainId];
+    const chain = getChainDetails(chainId);
+    return chain?.providers?.[0]?.rpcUrl;
   };
 
   const queryBlockRange = async (contract, dataFeedId, provider, start, end, step) => {
     const results = [];
+    console.log('Starting query with dataFeedId:', dataFeedId);
+    
     for (let blockNumber = start; blockNumber <= end; blockNumber += Number(step)) {
       try {
         const data = await contract.readDataFeedWithId(dataFeedId, {
           blockTag: blockNumber
         });
+        console.log('Block', blockNumber, 'data:', data);
         
         results.push({
           blockNumber,
@@ -36,7 +70,7 @@ function App() {
           timestamp: new Date(Number(data.timestamp) * 1000).toLocaleString()
         });
       } catch (err) {
-        console.warn(`Failed to query block ${blockNumber}:`, err.message);
+        console.error(`Error at block ${blockNumber}:`, err);
         // Continue with next block even if one fails
         continue;
       }
@@ -56,6 +90,11 @@ function App() {
         throw new Error('All fields are required');
       }
 
+      const chain = getChainDetails(chainId);
+      if (!chain) {
+        throw new Error('Unsupported chain ID');
+      }
+
       const contractAddress = deploymentAddresses.Api3ServerV1[chainId];
       if (!contractAddress) {
         throw new Error('Contract not deployed on this chain');
@@ -63,7 +102,7 @@ function App() {
 
       const rpcUrl = getRpcUrl(chainId);
       if (!rpcUrl) {
-        throw new Error('Unsupported chain ID');
+        throw new Error('No RPC URL available for this chain');
       }
 
       const provider = new ethers.JsonRpcProvider(rpcUrl);
@@ -83,7 +122,14 @@ function App() {
 
       // Get data feed ID
       const dapiName = ethers.encodeBytes32String(feedName);
+      console.log('Encoded dAPI name:', dapiName);
+      
       const dataFeedId = await contract.dapiNameToDataFeedId(dapiName);
+      console.log('Data feed ID:', dataFeedId);
+      
+      if (dataFeedId === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        throw new Error(`Feed name "${feedName}" not found on this chain`);
+      }
 
       // Query the block range
       const blockResults = await queryBlockRange(
@@ -95,9 +141,16 @@ function App() {
         blockStep
       );
 
+      console.log('Query results:', blockResults);
+
+      if (blockResults.length === 0) {
+        throw new Error('No data found for the specified block range');
+      }
+
       setResults(blockResults);
     } catch (err) {
-      setError(err.message);
+      console.error('Detailed error:', err);
+      setError(err.message || 'An unknown error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -110,14 +163,33 @@ function App() {
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Chain ID:</label>
+            <label>Chain:</label>
             <input
               type="text"
-              value={chainId}
-              onChange={(e) => setChainId(e.target.value)}
+              value={chainSearch}
+              onChange={handleChainSearchChange}
               required
-              placeholder="Enter chain Id"
+              placeholder="Search by chain name or ID"
+              autoComplete="off"
             />
+            {showChainDropdown && chainSearch && (
+              <div className="chain-dropdown">
+                {searchChains(chainSearch).map(chain => (
+                  <div
+                    key={chain.id}
+                    className="chain-option"
+                    onClick={() => handleChainSelect(chain)}
+                  >
+                    {chain.name} ({chain.id})
+                  </div>
+                ))}
+              </div>
+            )}
+            {chainId && getChainDetails(chainId) && (
+              <div className="chain-name">
+                Selected: {getChainDetails(chainId).name} ({chainId})
+              </div>
+            )}
           </div>
 
           <div className="form-group">
