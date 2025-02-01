@@ -1,31 +1,50 @@
-# Create React App
+# Historical API3 Data Feed Reader
 
-This directory is a brief example of a [Create React App](https://github.com/facebook/create-react-app) site that can be deployed to Vercel with zero configuration.
+A React-based web application that allows users to query historical data from API3 data feeds across various blockchain networks.
 
-## Deploy Your Own
+## Usage
 
-Deploy your own Create React App project with Vercel.
+To query historical data:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/vercel/tree/main/examples/create-react-app&template=create-react-app)
+- Select a blockchain network from the dropdown
+- Enter the start and end block numbers
+- Specify the block step (interval between queries)
+- Enter the feed name (e.g., "ETH/USD")
+- Click "Query Historical Data"
 
-_Live Example: https://create-react-template.vercel.app/_
+## Installation
 
-## Available Scripts
+1. Clone the repository:
 
-In the project directory, you can run:
+```bash
+git clone https://github.com/alikonuk1/history-api3.git
+cd history-api3
+```
 
-### `npm start`
+2. Install dependencies:
 
-Runs the app in the development mode. Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```bash
+npm install
+```
 
-The page will reload when you make changes. You may also see any lint errors in the console.
+3. Start the development server:
 
-### `npm test`
+```bash
+npm start
+```
 
-Launches the test runner in the interactive watch mode. See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-### `npm run build`
+## Dependencies
 
-Builds the app for production to the `build` folder.
+- [@api3/chains](https://github.com/api3dao/chains): Chain configurations and RPC endpoints
+- [@api3/contracts](https://github.com/api3dao/contracts): API3 smart contract interfaces and addresses
+- [ethers.js](https://docs.ethers.org/): Ethereum library for interacting with the blockchain
 
-It correctly bundles React in production mode and optimizes the build for the best performance. The build is minified and the filenames include the hashes.
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Support
+
+For support, please open an issue in the GitHub repository.
