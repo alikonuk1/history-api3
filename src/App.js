@@ -57,12 +57,22 @@ function App() {
     return chain?.providers?.[0]?.rpcUrl;
   };
 
-  const queryBlockRange = async (contract, dataFeedId, provider, start, end, step) => {
+  const queryBlockRange = async (contract, dapiName, provider, start, end, step) => {
     const results = [];
-    console.log('Starting query with dataFeedId:', dataFeedId);
+    console.log('Starting query with dAPI name:', dapiName);
     
     for (let blockNumber = start; blockNumber <= end; blockNumber += Number(step)) {
       try {
+        // Get dataFeedId at the specific block we're querying
+        const dataFeedId = await contract.dapiNameToDataFeedId(dapiName, {
+          blockTag: blockNumber
+        });
+        
+        if (dataFeedId === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+          console.log(`Feed name "${dapiName}" not found at block ${blockNumber}`);
+          continue;
+        }
+
         const data = await contract.readDataFeedWithId(dataFeedId, {
           blockTag: blockNumber
         });
@@ -158,21 +168,14 @@ function App() {
         throw new Error(`End block too high. Latest block is ${latestBlock}`);
       }
 
-      // Get data feed ID
+      // Encode dAPI name
       const dapiName = ethers.encodeBytes32String(feedName);
       console.log('Encoded dAPI name:', dapiName);
-      
-      const dataFeedId = await contract.dapiNameToDataFeedId(dapiName);
-      console.log('Data feed ID:', dataFeedId);
-      
-      if (dataFeedId === '0x0000000000000000000000000000000000000000000000000000000000000000') {
-        throw new Error(`Feed name "${feedName}" not found on this chain`);
-      }
 
       // Query the block range
       const blockResults = await queryBlockRange(
         contract,
-        dataFeedId,
+        dapiName,
         provider,
         startNum,
         endNum,
