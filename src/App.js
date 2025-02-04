@@ -2,14 +2,18 @@ import { useState } from 'react';
 import { ethers } from 'ethers';
 import { deploymentAddresses, IApi3ServerV1__factory } from '@api3/contracts';
 import { CHAINS } from '@api3/chains';
+import EthDater from 'ethereum-block-by-date';
 import './App.css';
 
 function App() {
+  const [queryMode, setQueryMode] = useState('block'); // 'block' or 'date'
   const [chainId, setChainId] = useState('');
   const [chainSearch, setChainSearch] = useState('');
   const [showChainDropdown, setShowChainDropdown] = useState(false);
   const [startBlock, setStartBlock] = useState('');
   const [endBlock, setEndBlock] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [blockStep, setBlockStep] = useState('1000');
   const [feedName, setFeedName] = useState('');
   const [results, setResults] = useState([]);
@@ -78,6 +82,17 @@ function App() {
     return results;
   };
 
+  const getBlockFromDate = async (dateStr, provider) => {
+    try {
+      const dater = new EthDater(provider);
+      const block = await dater.getDate(dateStr);
+      return block.block;
+    } catch (error) {
+      console.error('Error converting date to block:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -86,18 +101,21 @@ function App() {
 
     try {
       // Validate inputs
-      if (!chainId || !startBlock || !endBlock || !feedName) {
-        throw new Error('All fields are required');
+      if (!chainId || !feedName) {
+        throw new Error('Chain and feed name are required');
+      }
+
+      if (queryMode === 'block' && (!startBlock || !endBlock)) {
+        throw new Error('Start and end blocks are required');
+      }
+
+      if (queryMode === 'date' && (!startDate || !endDate)) {
+        throw new Error('Start and end dates are required');
       }
 
       const chain = getChainDetails(chainId);
       if (!chain) {
         throw new Error('Unsupported chain ID');
-      }
-
-      const contractAddress = deploymentAddresses.Api3ServerV1[chainId];
-      if (!contractAddress) {
-        throw new Error('Contract not deployed on this chain');
       }
 
       const rpcUrl = getRpcUrl(chainId);
@@ -106,12 +124,32 @@ function App() {
       }
 
       const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+      // Convert dates to blocks if in date mode
+      let finalStartBlock = startBlock;
+      let finalEndBlock = endBlock;
+
+      if (queryMode === 'date') {
+        try {
+          finalStartBlock = await getBlockFromDate(startDate, provider);
+          finalEndBlock = await getBlockFromDate(endDate, provider);
+          console.log(`Date conversion: ${startDate} -> block ${finalStartBlock}, ${endDate} -> block ${finalEndBlock}`);
+        } catch (error) {
+          throw new Error(`Error converting dates to blocks: ${error.message}`);
+        }
+      }
+
+      const contractAddress = deploymentAddresses.Api3ServerV1[chainId];
+      if (!contractAddress) {
+        throw new Error('Contract not deployed on this chain');
+      }
+
       const contract = IApi3ServerV1__factory.connect(contractAddress, provider);
       
       // Validate block range
       const latestBlock = await provider.getBlockNumber();
-      const startNum = Number(startBlock);
-      const endNum = Number(endBlock);
+      const startNum = Number(finalStartBlock);
+      const endNum = Number(finalEndBlock);
       
       if (startNum > endNum) {
         throw new Error('Start block must be less than end block');
@@ -193,26 +231,76 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label>Start Block:</label>
-            <input
-              type="number"
-              value={startBlock}
-              onChange={(e) => setStartBlock(e.target.value)}
-              required
-              placeholder="Enter start block number"
-            />
+            <label>Query Mode:</label>
+            <div className="query-mode-selector">
+              <label>
+                <input
+                  type="radio"
+                  value="block"
+                  checked={queryMode === 'block'}
+                  onChange={(e) => setQueryMode(e.target.value)}
+                />
+                Block Range
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  value="date"
+                  checked={queryMode === 'date'}
+                  onChange={(e) => setQueryMode(e.target.value)}
+                />
+                Date Range
+              </label>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label>End Block:</label>
-            <input
-              type="number"
-              value={endBlock}
-              onChange={(e) => setEndBlock(e.target.value)}
-              required
-              placeholder="Enter end block number"
-            />
-          </div>
+          {queryMode === 'block' ? (
+            <>
+              <div className="form-group">
+                <label>Start Block:</label>
+                <input
+                  type="number"
+                  value={startBlock}
+                  onChange={(e) => setStartBlock(e.target.value)}
+                  required
+                  placeholder="Enter start block number"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>End Block:</label>
+                <input
+                  type="number"
+                  value={endBlock}
+                  onChange={(e) => setEndBlock(e.target.value)}
+                  required
+                  placeholder="Enter end block number"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="form-group">
+                <label>Start Date:</label>
+                <input
+                  type="datetime-local"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>End Date:</label>
+                <input
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                />
+              </div>
+            </>
+          )}
 
           <div className="form-group">
             <label>Block Step:</label>
